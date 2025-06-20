@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte Interactive d'Ethelgard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Showdown.js to convert Markdown to HTML -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <style>
+        /* Custom font classes */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-cinzel {
+            font-family: 'Cinzel Decorative', cursive;
+        }
+        /* Custom styles for map markers */
+        .map-marker {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: rgba(239, 68, 68, 0.7); /* red-500 with opacity */
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+        }
+        .map-marker:hover {
+            transform: scale(1.5);
+            background-color: rgba(239, 68, 68, 1); /* solid red-500 on hover */
+        }
+        .map-marker.active {
+            background-color: rgba(59, 130, 246, 1); /* blue-500 */
+            transform: scale(1.8);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.8);
+        }
+        /* Pulsing animation for markers */
+        .map-marker::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            background-color: inherit;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 2s infinite;
+            z-index: -1;
+        }
+        @keyframes pulse {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.7;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(3);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <!-- Header Section -->
+    <header class="bg-gray-800 p-4 text-center shadow-lg">
+        <h1 class="font-cinzel text-3xl md:text-4xl text-amber-100 tracking-wider">Le Monde Vacillant d'Ethelgard</h1>
+    </header>
+
+    <!-- Main Content: Map and Info Panel -->
+    <main class="flex flex-col md:flex-row h-[calc(100vh-68px)]">
+
+        <!-- Left Panel: Interactive Map -->
+        <div id="map-container" class="w-full md:w-2/3 h-1/2 md:h-full relative overflow-hidden bg-gray-700">
+            <img id="map-image" src="https://storage.googleapis.com/aip-dev-user-output-prod/images/42e88a38-c30f-48d6-843b-18544e7e6f3d.png" alt="Carte d'Ethelgard" class="w-full h-full object-contain md:object-cover">
+            <!-- Markers will be dynamically inserted here by JavaScript -->
+        </div>
+
+        <!-- Right Panel: Information Display -->
+        <div id="info-panel" class="w-full md:w-1/3 h-1/2 md:h-full bg-gray-800 p-6 overflow-y-auto shadow-inner">
+            <h2 id="info-title" class="font-cinzel text-2xl text-amber-200 border-b-2 border-gray-600 pb-2 mb-4">Bienvenue en Ethelgard</h2>
+            <div id="info-content" class="prose prose-invert max-w-none text-gray-300 leading-relaxed">
+                <p>Cliquez sur un marqueur sur la carte pour en apprendre davantage sur les régions et les cités d'Ethelgard.</p>
+                <p>Le monde que vous vous apprêtez à explorer est un monde de secrets anciens et d'ordre chancelant. Pendant des siècles, la Grande Église de l'Alliance Divine a maintenu la paix par le culte de ses Avatars Divins. Mais cette paix est en train de s'effondrer.</p>
+                <p>Des forges industrielles de la Mer Cendrée aux frontières sauvages du Diocèse de Véridian, une étrange instabilité s'insinue dans le monde. La magie vacille, la foi est mise à l'épreuve, et d'anciennes puissances s'agitent dans l'ombre. Ce guide sera votre compagnon pour découvrir les mystères de ce monde vacillant.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- DATA FOR MAP MARKERS ---
+        // To add a new location, simply add a new object to this array.
+        // x and y are percentages (0-100) for positioning from the top-left corner.
+        const locations = [
+            {
+                id: 'lumen',
+                name: 'Lumen, la Cité Sainte',
+                x: 48,
+                y: 45,
+                title: 'Lumen, la Cité Sainte',
+                content: `
+### Le Cœur du Concordat
+
+Le cœur spirituel et politique du Concordat Éthéréen. Lumen est une cité d'impossibles flèches de marbre blanc, de cathédrales dorées et de statues colossales des Avatars. C'est le siège du Haut Synode, et ses rues immaculées sont un symbole de l'ordre divin de l'Église.
+
+* **Ambiance :** Grandiose, autoritaire, propre et profondément politique.
+* **Secret :** Sous la ville, le Cœur Mécanique défaille, et sa dissonance est un secret connu seulement des plus hauts échelons.
+                `
+            },
+            {
+                id: 'oakhaven',
+                name: 'Chênehavre',
+                x: 52,
+                y: 65,
+                title: 'Chênehavre, dans le Val-Fécond',
+                content: `
+### Le Grenier à Blé Terni
+
+Un village fermier autrefois prospère au cœur du Diocèse de Véridian. Chênehavre est un microcosme des problèmes du monde : un mystérieux fléau ruine les récoltes, le prêtre local prêche l'hérésie, et un sentiment de désespoir tranquille a remplacé son charme pastoral.
+
+* **Ambiance :** Inquiétante, rustique, craintive, suspicieuse.
+* **Problème actuel :** Le Fléau Murmurant se propage depuis le Sanctuaire en ruine de Vinea.
+                `
+            },
+            {
+                id: 'silverton',
+                name: 'Argenton',
+                x: 60,
+                y: 60,
+                title: 'Argenton, Siège du Diocèse de Véridian',
+                content: `
+### Le Rempart du Sud
+
+Le centre administratif fortifié du Diocèse de Véridian, dirigé par la fervente Préservationniste, l'Arch-Luminar Valériana. Il se dresse comme un bastion de la loi de l'Église contre le chaos perçu de la Pleurisilve Verdoyante au sud.
+
+* **Ambiance :** Ordonnée, militariste, dévote, paranoïaque.
+* **Politique :** Un foyer de pouvoir Préservationniste, mais des agents Innovateurs opèrent dans l'ombre.
+                `
+            },
+            {
+                id: 'vorlag_keep',
+                name: 'Fort Vorlag',
+                x: 25,
+                y: 50,
+                title: 'Fort Vorlag, de la Marche de Vorlag',
+                content: `
+### Le Bouclier de l'Ouest
+
+Moins une ville qu'une forteresse gargantuesque taillée dans une montagne, Fort Vorlag est le siège de la maison martiale Vorlag. La vie ici est définie par la discipline et le culte de Bellona Prime, la Déesse de la Guerre.
+
+* **Ambiance :** Martiale, disciplinée, austère, robuste.
+* **Problème actuel :** La déesse patronne, Bellona Prime, devient plus erratique, poussant les légions disciplinées vers un massacre insensé.
+                `
+            },
+            {
+                id: 'port_regulus',
+                name: 'Port Régulus',
+                x: 80,
+                y: 55,
+                title: 'Port Régulus, Joyau de l\'Étendue d\'Obsidienne',
+                content: `
+### La Toile du Marchand
+
+Le port le plus riche et le plus corrompu du continent, dirigé par le Consortium de la Main d'Obsidienne. Ici, l'or est dieu, et l'influence de l'Église est une affaire de commerce, pas de foi. C'est le premier point de contact pour l'Armada des Empires Engloutis.
+
+* **Ambiance :** Animée, chaotique, dangereuse, opportuniste.
+* **Problème actuel :** Le dieu patron, Mercator, tord les contrats et provoque un chaos économique. Des navires de guerre étrangers ont été aperçus au large.
+                `
+            },
+            {
+                id: 'caldera',
+                name: 'Caldera',
+                x: 55,
+                y: 20,
+                title: 'Caldera, Forge de la Mer Cendrée',
+                content: `
+### La Forge du Nord
+
+Une ville construite dans une immense caldeira volcanique, où les Forges des Dévots utilisent l'énergie géothermique pour forger les meilleures armes du Concordat. C'est une terre de fumée, de feu et de pragmatisme robuste, avec de fortes sympathies Innovatrices.
+
+* **Ambiance :** Industrielle, volatile, pragmatique, enfumée.
+* **Problème actuel :** Les évents géothermiques deviennent instables, et les armes forgées ici montrent des signes de corruption.
+                `
+            },
+            {
+                id: 'argent_spire',
+                name: 'Flèche d\'Argent',
+                x: 40,
+                y: 35,
+                title: 'Flèche d\'Argent, de la Mer Argentée',
+                content: `
+### Le Centre Scolastique
+
+L'âme intellectuelle et théologique de l'Église. Une ville d'universités immaculées et de bibliothèques aux toits d'argent où la doctrine est débattue et la loi sainte est écrite.
+
+* **Ambiance :** Contemplative, académique, immaculée, tranquillement impitoyable.
+* **Problème actuel :** Avec la défaillance de Veritas, l'Avatar du Savoir, la Grande Bibliothèque souffre d'une "corruption textuelle", où les mots et les cartes se réécrivent activement en de dangereux mensonges.
+                `
+            }
+        ];
+
+        // --- SCRIPT LOGIC ---
+        const mapContainer = document.getElementById('map-container');
+        const infoTitle = document.getElementById('info-title');
+        const infoContent = document.getElementById('info-content');
+        
+        // Initialize Showdown converter
+        const markdownConverter = new showdown.Converter();
+
+        // Function to create and place markers on the map
+        function renderMarkers() {
+            // Clear existing markers first to prevent duplicates on resize
+            mapContainer.querySelectorAll('.map-marker').forEach(marker => marker.remove());
+
+            locations.forEach(location => {
+                const marker = document.createElement('div');
+                marker.className = 'map-marker';
+                marker.id = `marker-${location.id}`;
+                marker.style.top = `${location.y}%`;
+                marker.style.left = `${location.x}%`;
+                marker.title = location.name; // Tooltip on hover
+
+                // Add click event listener to each marker
+                marker.addEventListener('click', () => {
+                    // Update info panel
+                    infoTitle.textContent = location.title;
+                    infoContent.innerHTML = markdownConverter.makeHtml(location.content);
+
+                    // Update active marker styling
+                    document.querySelectorAll('.map-marker').forEach(m => m.classList.remove('active'));
+                    marker.classList.add('active');
+                });
+
+                mapContainer.appendChild(marker);
+            });
+        }
+        
+        // --- EVENT LISTENERS ---
+
+        // Initial render on page load
+        window.addEventListener('load', renderMarkers);
+        
+        // Optional: Re-render markers on window resize to maintain positions if layout changes drastically
+        // For this simple percentage-based layout, it's not strictly necessary but good practice.
+        window.addEventListener('resize', renderMarkers);
+
+    </script>
+</body>
+</html>
